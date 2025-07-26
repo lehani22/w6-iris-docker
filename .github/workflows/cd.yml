@@ -1,0 +1,75 @@
+name: CD-iris-api
+
+on:
+  push:
+    branches:
+      - main 
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GKE_CLUSTER: iris-cluster
+  GKE_ZONE: us-central1-c
+  IMAGE_NAME: iris-api
+  REPO_NAME: my-app-repo 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-gh-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-gh-actions/setup-gcloud@v1
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build Docker Image
+        run: |
+          docker build -t $IMAGE_NAME:latest .
+          docker tag $IMAGE_NAME:latest us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$GITHUB_SHA
+
+      - name: Push Docker Image
+        run: docker push us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$GITHUB_SHA
+
+      - name: Deploy to GKE
+        run: |
+          # Get GKE credentials
+          gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE
+
+          # Replace the placeholder in the deployment yaml with the new image
+          sed -i "s|IMAGE_URL|us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$GITHUB_SHA|g" k8s/deployment.yaml
+
+          # Apply the kubernetes manifests
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+      - name: Setup CML
+        uses: iterative/setup-cml@v1
+
+      - name: Post CML Report
+        env:
+          # This token is required to post a comment on the commit
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Wait for the load balancer to get an external IP
+          echo "Waiting for external IP..."
+          sleep 60 # Give it a minute
+          IP=$(kubectl get service iris-api-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          # Create a report in a markdown file
+          echo "## ✅ Deployment Successful" > report.md
+          echo "API deployed to GKE and is available at: http://$IP" >> report.md
+          echo "Test with:" >> report.md
+          echo "\`\`\`bash" >> report.md
+          echo "curl -X POST http://$IP/predict -H 'Content-Type: application/json' -d '{\"sepal_length\": 5.1, \"sepal_width\": 3.5, \"petal_length\": 1.4, \"petal_width\": 0.2}'" >> report.md
+          echo "\`\`\`" >> report.md
+
+          # Post the report as a comment on the commit
+          cml comment create report.md
