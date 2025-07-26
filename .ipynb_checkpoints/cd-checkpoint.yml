@@ -55,7 +55,6 @@ jobs:
 
       - name: Post CML Report
         env:
-          # This token is required to post a comment on the commit
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Wait for the load balancer to get an external IP
