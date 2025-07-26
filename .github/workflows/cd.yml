@@ -37,6 +37,10 @@ jobs:
 
       - name: Push Docker Image
         run: docker push us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$GITHUB_SHA
+        
+      - name: Install Package
+        run: |
+          sudo apt-get install google-cloud-cli-gke-gcloud-auth-plugin
 
       - name: Deploy to GKE
         run: |
@@ -51,7 +55,7 @@ jobs:
           kubectl apply -f k8s/service.yaml
 
       - name: Setup CML
-        uses: iterative/setup-cml@v1
+        uses: iterative/setup-cml@v2
 
       - name: Post CML Report
         env:
