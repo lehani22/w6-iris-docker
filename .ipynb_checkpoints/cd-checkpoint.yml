@@ -37,14 +37,11 @@ jobs:
 
       - name: Push Docker Image
         run: docker push us-central1-docker.pkg.dev/$PROJECT_ID/$REPO_NAME/$IMAGE_NAME:$GITHUB_SHA
-        
-      - name: Install Package
-        run: |
-          sudo apt-get install google-cloud-cli-gke-gcloud-auth-plugin
 
       - name: Deploy to GKE
         run: |
           # Get GKE credentials
+          gcloud components install gke-gcloud-auth-plugin
           gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE
 
           # Replace the placeholder in the deployment yaml with the new image
