@@ -11,9 +11,12 @@ spec:
     metadata:
       labels:
         app: iris-api
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '80'
     spec:
       containers:
       - name: iris-api
-        image: IMAGE_URL # Placeholder
+        image: IMAGE_URL
         ports:
         - containerPort: 80

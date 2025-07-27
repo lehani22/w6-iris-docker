@@ -3,3 +3,5 @@ uvicorn
 scikit-learn
 pydantic
 numpy
+google-cloud-logging
+prometheus-fastapi-instrumentator
